@@ -13,8 +13,9 @@ let error = Error.error
 
 type value = Values.value
 type func = Ast.func
-type import = value list -> value option
 type host_params = {page_size : Memory.size}
+type import = Memory.t -> host_params -> Source.region -> value list -> value option
+type bound_import = Source.region -> value list -> value option
 
 module ExportMap = Map.Make(String)
 type export_map = func ExportMap.t
@@ -22,7 +23,7 @@ type export_map = func ExportMap.t
 type instance =
 {
   funcs : func list;
-  imports : import list;
+  imports : bound_import list;
   exports : export_map;
   tables : func list list;
   memory : Memory.t;
@@ -140,7 +141,7 @@ let rec eval_expr (c : config) (e : expr) =
 
   | CallImport (x, es) ->
     let vs = List.map (fun ev -> some (eval_expr c ev) ev.at) es in
-    (import c x) vs
+    (import c x) e.at vs
 
   | CallIndirect (x, e1, es) ->
     let i = int32 (eval_expr c e1) e1.at in
@@ -199,19 +200,6 @@ let rec eval_expr (c : config) (e : expr) =
     (try Some (Arithmetic.eval_cvt cvt v1)
     with Arithmetic.TypeError (_, v, t) -> type_error e1.at v t)
 
-  | PageSize ->
-    Some (Int32 (page_size c))
-
-  | MemorySize ->
-    Some (Int32 (Int32.of_int (Memory.size c.modul.memory)))
-
-  | ResizeMemory e ->
-    let i = int32 (eval_expr c e) e.at in
-    if (Int32.rem i (page_size c)) <> Int32.zero then
-      error e.at "runtime: resize_memory operand not multiple of page_size";
-    Memory.resize c.modul.memory (Int32.to_int i);
-    None
-
 and eval_expr_option c eo =
   match eo with
   | Some e -> eval_expr c e
@@ -248,8 +236,8 @@ let init_memory ast =
     Memory.init mem (List.map it segments);
     mem
 
-let init m imports host =
-  assert (List.length imports = List.length m.it.Ast.imports);
+let init m unbound_imports host =
+  assert (List.length unbound_imports = List.length m.it.Ast.imports);
   assert (host.page_size > 0);
   assert (Lib.Int.is_power_of_two host.page_size);
   let {Ast.exports; tables; funcs; memory; _} = m.it in
@@ -258,6 +246,7 @@ let init m imports host =
   let export ex = ExportMap.add ex.it.name (func ex.it.func) in
   let exports = List.fold_right export exports ExportMap.empty in
   let tables = List.map (fun tab -> List.map func tab.it) tables in
+  let imports = List.map (fun imp -> imp mem host) unbound_imports in
   {funcs; imports; exports; tables; memory = mem; host}
 
 let invoke m name vs =

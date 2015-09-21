@@ -7,7 +7,7 @@ INCLUDES = -I host -I given -I spec
 MODULES = \
   host/params host/flags given/lib given/source given/float32 given/float64 spec/error \
   spec/types spec/values spec/memory spec/ast \
-  spec/check spec/arithmetic spec/eval \
+  spec/check spec/arithmetic spec/eval spec/intrinsics \
   host/print host/builtins host/script \
   host/lexer host/parser \
   host/main

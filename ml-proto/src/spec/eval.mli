@@ -4,8 +4,8 @@
 
 type instance
 type value = Values.value
-type import = value list -> value option
 type host_params = {page_size : Memory.size}
+type import = Memory.t -> host_params -> Source.region -> value list -> value option
 
 val init : Ast.modul -> import list -> host_params -> instance
 val invoke : instance -> string -> value list -> value option
