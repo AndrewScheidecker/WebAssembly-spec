@@ -19,7 +19,7 @@ let resize_memory mem host at vs =
   | _ ->
     Error.error at "runtime: resize_memory expects a single i32 parameter"
 
-let match_import (i : Ast.import) =
+let match_import i =
   let {Ast.module_name; func_name; func_params; func_result} = i.it in
   let (result : Eval.import) = match module_name, func_name, func_result, func_params with
   | "wasm_intrinsics", "memory_size", Some { at = _; it = Int32Type}, [] -> memory_size
